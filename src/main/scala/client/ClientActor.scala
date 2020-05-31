@@ -1,6 +1,7 @@
 package client
 
 import akka.actor.{Actor, ActorRef}
+import app.Main.safePrintln
 import msg.{ClientRequest, ServerResponse}
 
 
@@ -9,17 +10,22 @@ class ClientActor(server: ActorRef) extends Actor {
   override def receive: Receive = {
     case productName: String =>
       val name = self.path.name
-      println(f"$name%s asked for: ".concat(productName))
-      printMinPrice(productName)
+      safePrintln(f"REQUEST:$name%s asked for: ".concat(productName))
+      requestMinPrice(productName)
     case response: ServerResponse =>
+      val name = self.path.name
       val productName = response.productName
       val price = response.price
-      println(f"Product: $productName%s, price: $price%f")
+      if(price > 0){
+        safePrintln(f"RESPONSE:$name  product: $productName%s, price: $price%f")
+      }else{
+        safePrintln(f"RESPONSE:$name  product: $productName%s, NO PRICE")
+      }
     case _ =>
-      println("Unknown message")
+      safePrintln("Unknown message")
   }
 
-  def printMinPrice(productName: String): Unit = {
+  def requestMinPrice(productName: String): Unit = {
     server ! ClientRequest(productName)
   }
 }

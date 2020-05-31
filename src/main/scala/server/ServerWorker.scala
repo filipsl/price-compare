@@ -1,6 +1,6 @@
 package server
 
-import akka.actor.{Actor, Kill, PoisonPill, Props}
+import akka.actor.{Actor, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import app.Main.safePrintln
@@ -20,29 +20,35 @@ class ServerWorker extends Actor {
       val futureWorkerResponse1 = (context.actorOf(Props[PriceWorker]) ? request).mapTo[PriceWorkerResponse]
       val futureWorkerResponse2 = (context.actorOf(Props[PriceWorker]) ? request).mapTo[PriceWorkerResponse]
 
-      val combinedWorkerResponse = futureWorkerResponse1.zipWith(futureWorkerResponse2)((q1, q2) => Seq(q1.price, q2.price).min)
+      val combinedWorkerResponse = futureWorkerResponse1.zipWith(futureWorkerResponse2)((response1, response2) => Seq(response1.price, response2.price).min)
         .fallbackTo(futureWorkerResponse1.map(_.price))
         .fallbackTo(futureWorkerResponse2.map(_.price))
+        .fallbackTo(Future[Double] {
+          -1.0
+        })
 
       val server = sender()
 
       futureWorkerResponse1.onComplete {
         case Success(price) =>
           sender() ! PoisonPill.getInstance
-        case Failure(e) => e.printStackTrace
+        case Failure(e) =>
+          sender() ! PoisonPill.getInstance
+          safePrintln(s"No response from the first price worker within 300ms: ${request.productName}")
       }
 
       futureWorkerResponse2.onComplete {
         case Success(price) =>
           sender() ! PoisonPill.getInstance
-        case Failure(e) => e.printStackTrace
+        case Failure(e) =>
+          sender() ! PoisonPill.getInstance
+          safePrintln(s"No response from the second price worker within 300ms: ${request.productName}")
       }
 
       combinedWorkerResponse.onComplete {
         case Success(price) =>
-          safePrintln(s"Got the callback, value = $price")
           server ! ServerWorkerResponse(request.productName, price)
-        case Failure(e) => e.printStackTrace
+        case Failure(e) => safePrintln(s"Error occurred within ServerWorker ${self.path.name}")
       }
     case _ =>
       safePrintln("ServerWorker got unknown message")

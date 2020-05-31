@@ -2,6 +2,7 @@ package app
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import client.ClientActor
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 
 import language.postfixOps
 import server.ServerActor
@@ -39,18 +40,24 @@ object Main {
   }
 
   def main(args: Array[String]) {
-    val system = ActorSystem("priceCompareSystem")
+
+    val config = ConfigFactory.load()
+      .withValue("akka.loglevel", ConfigValueFactory.fromAnyRef("OFF"))
+      .withValue("akka.stdout-loglevel", ConfigValueFactory.fromAnyRef("OFF"))
+
+    val system = ActorSystem("priceCompareSystem", config)
     safePrintln("Started price-compare system")
     val server = system.actorOf(Props[ServerActor], "server")
 
     for (i <- 0 to 9) clients += system.actorOf(Props(classOf[ClientActor], server), f"client$i")
 
-    while (true) {
+    var runLoop = true
+    while (runLoop) {
       val line = scala.io.StdIn.readLine()
       line match {
         case "run" => runSimulation()
         case "c" => runSingleRequest()
-        case "quit" => None //Todo implement quit
+        case "quit" =>  system.terminate(); runLoop = false;
         case _ => safePrintln("Unknown command. Available commands => run, c, quit")
       }
     }

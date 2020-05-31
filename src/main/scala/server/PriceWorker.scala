@@ -14,6 +14,8 @@ class PriceWorker extends Actor {
 
       val r = scala.util.Random
       val randomPrice = r.nextDouble() * 9 + 1
+      safePrintln(s"Price worker delay $msToSleep ms, price $randomPrice: ${req.productName}")
+
       sender() ! PriceWorkerResponse(req.productName, randomPrice)
     case _ =>
       safePrintln("PriceWorker received unknown message")

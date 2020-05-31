@@ -17,17 +17,19 @@ class ServerActor extends Actor {
 
   override def receive: Receive = {
     case request: ClientRequest =>
-      safePrintln("Server got product name: ".concat(request.productName))
+      val clientName = sender().path.name
+      safePrintln(s"SERVER: request from $clientName for ${request.productName}")
       val futureServerWorkerResponse = (context.actorOf(Props[ServerWorker]) ? request).mapTo[ServerWorkerResponse]
       val client = sender()
       futureServerWorkerResponse.onComplete {
         case Success(workerResponse) =>
-          safePrintln("SERVER GOT RESPONSE FROM WORKER")
           client ! ServerResponse(workerResponse.productName, workerResponse.price)
           sender() ! PoisonPill.getInstance
-        case Failure(e) => safePrintln("SERVER DID NOT GET RESPONSE FROM WORKER")
+        case Failure(e) =>
+          sender() ! PoisonPill.getInstance
+          safePrintln(s"SERVER DID NOT GET RESPONSE FROM WORKER: request from $clientName for ${request.productName}")
       }
 
-    case _ => safePrintln("Server got unknown message")
+    case _ => safePrintln("SERVER: Got unknown message")
   }
 }
