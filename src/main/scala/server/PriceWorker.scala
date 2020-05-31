@@ -1,6 +1,7 @@
 package server
 
 import akka.actor.Actor
+import app.Main.safePrintln
 import msg.{ClientRequest, PriceWorkerResponse}
 
 import scala.util.Random
@@ -15,6 +16,6 @@ class PriceWorker extends Actor {
       val randomPrice = r.nextDouble() * 9 + 1
       sender() ! PriceWorkerResponse(req.productName, randomPrice)
     case _ =>
-      println("PriceWorker received unknown message")
+      safePrintln("PriceWorker received unknown message")
   }
 }

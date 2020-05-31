@@ -1,22 +1,25 @@
 package client
 
 import akka.actor.{Actor, ActorRef}
-import akka.util.Timeout
-import msg.ClientRequest
+import msg.{ClientRequest, ServerResponse}
 
-import scala.concurrent.duration._
 
 class ClientActor(server: ActorRef) extends Actor {
 
   override def receive: Receive = {
     case productName: String =>
-      println("Client got message ".concat(productName))
-      getMinPrice(productName)
+      val name = self.path.name
+      println(f"$name%s asked for: ".concat(productName))
+      printMinPrice(productName)
+    case response: ServerResponse =>
+      val productName = response.productName
+      val price = response.price
+      println(f"Product: $productName%s, price: $price%f")
     case _ =>
       println("Unknown message")
   }
 
-  def getMinPrice(productName: String): Unit = {
+  def printMinPrice(productName: String): Unit = {
     server ! ClientRequest(productName)
   }
 }
