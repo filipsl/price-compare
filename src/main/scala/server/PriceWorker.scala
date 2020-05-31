@@ -1,5 +1,20 @@
 package server
 
-class PriceWorker {
+import akka.actor.Actor
+import msg.{ClientRequest, PriceWorkerResponse}
 
+import scala.util.Random
+
+class PriceWorker extends Actor {
+  override def receive: Receive = {
+    case req: ClientRequest =>
+      val msToSleep = Random.between(100, 500)
+      Thread.sleep(msToSleep)
+
+      val r = scala.util.Random
+      val randomPrice = r.nextDouble() * 9 + 1
+      sender() ! PriceWorkerResponse(req.productName, randomPrice)
+    case _ =>
+      println("PriceWorker received unknown message")
+  }
 }
