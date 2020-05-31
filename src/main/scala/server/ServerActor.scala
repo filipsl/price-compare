@@ -1,6 +1,6 @@
 package server
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, PoisonPill, Props}
 import msg.{ClientRequest, ServerResponse, ServerWorkerResponse}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -24,6 +24,7 @@ class ServerActor extends Actor {
         case Success(workerResponse) =>
           safePrintln("SERVER GOT RESPONSE FROM WORKER")
           client ! ServerResponse(workerResponse.productName, workerResponse.price)
+          sender() ! PoisonPill.getInstance
         case Failure(e) => safePrintln("SERVER DID NOT GET RESPONSE FROM WORKER")
       }
 

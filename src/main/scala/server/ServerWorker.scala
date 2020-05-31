@@ -1,6 +1,6 @@
 package server
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, Kill, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import app.Main.safePrintln
@@ -25,6 +25,18 @@ class ServerWorker extends Actor {
         .fallbackTo(futureWorkerResponse2.map(_.price))
 
       val server = sender()
+
+      futureWorkerResponse1.onComplete {
+        case Success(price) =>
+          sender() ! PoisonPill.getInstance
+        case Failure(e) => e.printStackTrace
+      }
+
+      futureWorkerResponse2.onComplete {
+        case Success(price) =>
+          sender() ! PoisonPill.getInstance
+        case Failure(e) => e.printStackTrace
+      }
 
       combinedWorkerResponse.onComplete {
         case Success(price) =>
