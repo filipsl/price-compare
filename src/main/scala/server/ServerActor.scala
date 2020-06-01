@@ -5,21 +5,23 @@ import msg.{ClientRequest, ServerResponse, ServerWorkerResponse}
 import akka.pattern.ask
 import akka.util.Timeout
 import app.Main.safePrintln
+import slick.jdbc.SQLiteProfile
 
 import scala.concurrent.ExecutionContext
 import ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import scala.language.postfixOps
 
 
-class ServerActor extends Actor {
+class ServerActor(db: SQLiteProfile.backend.DatabaseDef) extends Actor {
   implicit val timeout: Timeout = 1000 millis
 
   override def receive: Receive = {
     case request: ClientRequest =>
       val clientName = sender().path.name
       safePrintln(s"SERVER: request from $clientName for ${request.productName}")
-      val futureServerWorkerResponse = (context.actorOf(Props[ServerWorker]) ? request).mapTo[ServerWorkerResponse]
+      val futureServerWorkerResponse = (context.actorOf(Props(classOf[ServerWorker], db)) ? request).mapTo[ServerWorkerResponse]
       val client = sender()
       futureServerWorkerResponse.onComplete {
         case Success(workerResponse) =>

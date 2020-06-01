@@ -5,13 +5,16 @@ import akka.pattern.ask
 import akka.util.Timeout
 import app.Main.safePrintln
 import msg.{ClientRequest, PriceWorkerResponse, ServerWorkerResponse}
+import slick.jdbc.SQLiteProfile
 
 import scala.concurrent.duration._
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
+import scala.language.postfixOps
 
-class ServerWorker extends Actor {
+
+class ServerWorker(db: SQLiteProfile.backend.DatabaseDef) extends Actor {
   implicit val timeout: Timeout = 300 millis
 
   override def receive: Receive = {
