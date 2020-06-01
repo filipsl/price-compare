@@ -26,11 +26,17 @@ class ServerWorker(session: SQLiteProfile.backend.SessionDef) extends Actor {
       val futureDatabaseResponse = (context.actorOf(Props(classOf[DbAccessActor], session)) ? request).mapTo[DbAccessActorResponse]
 
 
-      val combinedWorkerResponse = futureWorkerResponse1.zipWith(futureWorkerResponse2)((response1, response2) => Seq(response1.price, response2.price).min)
+      val combinedPriceWorkerResponse = futureWorkerResponse1.zipWith(futureWorkerResponse2)((response1, response2) => Seq(response1.price, response2.price).min)
         .fallbackTo(futureWorkerResponse1.map(_.price))
         .fallbackTo(futureWorkerResponse2.map(_.price))
         .fallbackTo(Future[Double] {
           -1.0
+        })
+
+      val combinedWorkerResponse = combinedPriceWorkerResponse
+        .zipWith(futureDatabaseResponse)((priceResponse, counterResponse) => ServerWorkerResponse(request.productName, priceResponse, counterResponse.requestsCount))
+        .fallbackTo(Future[ServerWorkerResponse] {
+          ServerWorkerResponse(request.productName, combinedPriceWorkerResponse.value.get.get, -1)
         })
 
       val server = sender()
@@ -60,8 +66,8 @@ class ServerWorker(session: SQLiteProfile.backend.SessionDef) extends Actor {
       }
 
       combinedWorkerResponse.onComplete {
-        case Success(price) =>
-          server ! ServerWorkerResponse(request.productName, price)
+        case Success(response) =>
+          server ! response
         case Failure(e) =>
           safePrintln(s"Error occurred within ServerWorker ${self.path.name}")
       }

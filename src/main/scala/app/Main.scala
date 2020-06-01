@@ -2,7 +2,7 @@ package app
 
 import slick.jdbc.SQLiteProfile.api._
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.util.Timeout
+
 import client.ClientActor
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 
@@ -10,10 +10,8 @@ import scala.language.postfixOps
 import server.ServerActor
 
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.Await
-import scala.concurrent._
-import ExecutionContext.Implicits.global
-import scala.concurrent.duration._
+
+
 
 
 object Main {
@@ -53,18 +51,6 @@ object Main {
       driver = "org.sqlite.JDBC",
       executor = AsyncExecutor("request_count", numThreads=16, queueSize=1000)
     )
-
-
-    //    val timeout: Duration = 300 millis
-//    implicit val timeout: Timeout = 300 millis
-//    val q = sql"select ID from count_table ct".as[Int]
-//    val f1 = db.run(q)
-
-//    Await.result(
-//      db.run(q).map { res =>
-//        // res is a Vector[String]
-//        println(res)
-//      }, timeout)
 
     val config = ConfigFactory.load()
       .withValue("akka.loglevel", ConfigValueFactory.fromAnyRef("OFF"))

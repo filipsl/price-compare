@@ -16,9 +16,15 @@ class ClientActor(server: ActorRef) extends Actor {
       val name = self.path.name
       val productName = response.productName
       val price = response.price
-      if(price > 0){
-        safePrintln(f"RESPONSE:$name  product: $productName%s, price: $price%f")
-      }else{
+      val counter = response.counter
+
+      if (price > 0) {
+        if (counter >= 0) {
+          safePrintln(f"RESPONSE:$name  product: $productName%s, price: $price%f, request count: $counter%d")
+        } else {
+          safePrintln(f"RESPONSE:$name  product: $productName%s, price: $price%f")
+        }
+      } else {
         safePrintln(f"RESPONSE:$name  product: $productName%s, NO PRICE")
       }
     case _ =>

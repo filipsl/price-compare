@@ -27,7 +27,7 @@ class ServerActor(db: SQLiteProfile.backend.DatabaseDef) extends Actor {
       val client = sender()
       futureServerWorkerResponse.onComplete {
         case Success(workerResponse) =>
-          client ! ServerResponse(workerResponse.productName, workerResponse.price)
+          client ! ServerResponse(workerResponse.productName, workerResponse.price, workerResponse.counter)
           sender() ! PoisonPill.getInstance
         case Failure(e) =>
           sender() ! PoisonPill.getInstance
