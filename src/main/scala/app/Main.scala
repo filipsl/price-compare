@@ -2,26 +2,16 @@ package app
 
 import slick.jdbc.SQLiteProfile.api._
 import akka.actor.{ActorRef, ActorSystem, Props}
-import client.ClientActor
+import client.{ClientActor, HttpClientActor}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 
 import scala.language.postfixOps
 import server.ServerActor
 
 import scala.collection.mutable.ArrayBuffer
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Directives._
-import akka.stream.ActorMaterializer
-import akka.pattern.ask
-import akka.util.Timeout
-import msg.{ClientRequest, ServerResponse}
 
 import scala.language.postfixOps
-import scala.concurrent._
-import ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+
 
 
 object Main {
@@ -70,42 +60,8 @@ object Main {
 
     val server = system.actorOf(Props(classOf[ServerActor], db), "server")
 
-    val route =
-      concat(
-        pathPrefix("price" / Segment) { name =>
-          get {
-            implicit val timeout: Timeout = 1000 millis
-            val result = (server ? ClientRequest(name)).mapTo[ServerResponse]
-            onComplete(result) {
-              case Success(response) =>
-                val productName = response.productName
-                val price = response.price
-                val counter = response.counter
-                var responseStr = ""
-                if (price > 0) {
-                  if (counter >= 0) {
-                    responseStr = f"RESPONSE: product: $productName%s, price: $price%f, request count: $counter%d"
-                  } else {
-                    responseStr = f"RESPONSE: product: $productName%s, price: $price%f"
-                  }
-                } else {
-                  responseStr = f"RESPONSE: product: $productName%s, NO PRICE"
-                }
-                complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<p>$responseStr</p>"))
-              case Failure(e) => complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>Error occured</h1>"))
-            }
-          }
-        },
-        pathPrefix("review" / Segment) { name =>
-          get {
-            val review = getReview(name)
-            complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>Say hello2 to akka-http$name</h1>"))
-          }
-        })
-
-
-    val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
-
+    val httpClientActor = new HttpClientActor(system, server)
+    httpClientActor.runHttpClient()
 
     for (i <- 0 to 9) clients += system.actorOf(Props(classOf[ClientActor], server), f"client$i")
 
