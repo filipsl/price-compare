@@ -5,7 +5,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import app.Main.safePrintln
 import db.DbAccessActor
-import msg.{ClientRequest, PriceWorkerResponse, ServerWorkerResponse}
+import msg.{ClientRequest, DbAccessActorResponse, PriceWorkerResponse, ServerWorkerResponse}
 import slick.jdbc.SQLiteProfile
 
 import scala.concurrent.duration._
@@ -23,7 +23,7 @@ class ServerWorker(session: SQLiteProfile.backend.SessionDef) extends Actor {
 
       val futureWorkerResponse1 = (context.actorOf(Props[PriceWorker]) ? request).mapTo[PriceWorkerResponse]
       val futureWorkerResponse2 = (context.actorOf(Props[PriceWorker]) ? request).mapTo[PriceWorkerResponse]
-      (context.actorOf(Props(classOf[DbAccessActor], session.database)) ! request)
+      val futureDatabaseResponse = (context.actorOf(Props(classOf[DbAccessActor], session)) ? request).mapTo[DbAccessActorResponse]
 
 
       val combinedWorkerResponse = futureWorkerResponse1.zipWith(futureWorkerResponse2)((response1, response2) => Seq(response1.price, response2.price).min)
@@ -51,12 +51,18 @@ class ServerWorker(session: SQLiteProfile.backend.SessionDef) extends Actor {
           safePrintln(s"No response from the second price worker within 300ms: ${request.productName}")
       }
 
+      futureDatabaseResponse.onComplete {
+        case Success(v) =>
+          sender() ! PoisonPill.getInstance
+        case Failure(e) =>
+          sender() ! PoisonPill.getInstance
+          safePrintln(s"No response from the database worker within 300ms: ${request.productName}")
+      }
+
       combinedWorkerResponse.onComplete {
         case Success(price) =>
-          session.close()
           server ! ServerWorkerResponse(request.productName, price)
         case Failure(e) =>
-          session.close()
           safePrintln(s"Error occurred within ServerWorker ${self.path.name}")
       }
     case _ =>
