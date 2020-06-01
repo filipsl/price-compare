@@ -51,7 +51,9 @@ object Main {
 
     val db = Database.forURL("jdbc:sqlite:src/main/scala/db/request_count.db3",
       driver = "org.sqlite.JDBC",
-      executor = AsyncExecutor("request_count", numThreads = 16, queueSize = 1000))
+      executor = AsyncExecutor("request_count", numThreads=16, queueSize=1000)
+    )
+
 
     //    val timeout: Duration = 300 millis
 //    implicit val timeout: Timeout = 300 millis

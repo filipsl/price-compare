@@ -4,6 +4,7 @@ import akka.actor.{Actor, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import app.Main.safePrintln
+import db.DbAccessActor
 import msg.{ClientRequest, PriceWorkerResponse, ServerWorkerResponse}
 import slick.jdbc.SQLiteProfile
 
@@ -14,7 +15,7 @@ import scala.util.{Failure, Success}
 import scala.language.postfixOps
 
 
-class ServerWorker(db: SQLiteProfile.backend.DatabaseDef) extends Actor {
+class ServerWorker(session: SQLiteProfile.backend.SessionDef) extends Actor {
   implicit val timeout: Timeout = 300 millis
 
   override def receive: Receive = {
@@ -22,6 +23,8 @@ class ServerWorker(db: SQLiteProfile.backend.DatabaseDef) extends Actor {
 
       val futureWorkerResponse1 = (context.actorOf(Props[PriceWorker]) ? request).mapTo[PriceWorkerResponse]
       val futureWorkerResponse2 = (context.actorOf(Props[PriceWorker]) ? request).mapTo[PriceWorkerResponse]
+      (context.actorOf(Props(classOf[DbAccessActor], session.database)) ! request)
+
 
       val combinedWorkerResponse = futureWorkerResponse1.zipWith(futureWorkerResponse2)((response1, response2) => Seq(response1.price, response2.price).min)
         .fallbackTo(futureWorkerResponse1.map(_.price))
@@ -50,8 +53,11 @@ class ServerWorker(db: SQLiteProfile.backend.DatabaseDef) extends Actor {
 
       combinedWorkerResponse.onComplete {
         case Success(price) =>
+          session.close()
           server ! ServerWorkerResponse(request.productName, price)
-        case Failure(e) => safePrintln(s"Error occurred within ServerWorker ${self.path.name}")
+        case Failure(e) =>
+          session.close()
+          safePrintln(s"Error occurred within ServerWorker ${self.path.name}")
       }
     case _ =>
       safePrintln("ServerWorker got unknown message")

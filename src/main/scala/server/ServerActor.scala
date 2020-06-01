@@ -21,7 +21,8 @@ class ServerActor(db: SQLiteProfile.backend.DatabaseDef) extends Actor {
     case request: ClientRequest =>
       val clientName = sender().path.name
       safePrintln(s"SERVER: request from $clientName for ${request.productName}")
-      val futureServerWorkerResponse = (context.actorOf(Props(classOf[ServerWorker], db)) ? request).mapTo[ServerWorkerResponse]
+      val session = db.createSession()
+      val futureServerWorkerResponse = (context.actorOf(Props(classOf[ServerWorker], session)) ? request).mapTo[ServerWorkerResponse]
       val client = sender()
       futureServerWorkerResponse.onComplete {
         case Success(workerResponse) =>
